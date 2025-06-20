@@ -2,7 +2,14 @@ import os
 import platform
 from subprocess import run, PIPE
 
-project_name: str = "example"
+# how your executable should be named
+project_name: str = "file2str"
+
+# arguments you wonna use for testing
+testing_arguments = "t.txt a.h"
+
+
+# build code (don't touch it, unless you know what your doing)
 windows: bool = platform.system() == "Windows"
 
 if windows:
@@ -53,10 +60,17 @@ cmds = [
 
 for cmd in cmds:
 	execute_cmd(cmd[0], cmd[1])
+# end building code
+
+# testign code
+run([f"mkdir testing"], shell=True)
 
 if windows:
-	if os.path.exists(f".\\build\\{project_name}"):
-		run([f".\\build\\{project_name}.exe"], check = True)
+	if os.path.exists(f"build\\{project_name}_exec.exe"):
+		run([f"cp build\\{project_name}_exec.exe testing"], shell=True, check=True)
+		run([f".\\testing\\{project_name}_exec.exe {testing_arguments}"], shell=True, check = True)
 else:
-	if os.path.exists(f"./build/{project_name}"):
-		run([f"./build/{project_name}"], check = True)
+	if os.path.exists(f"build/{project_name}_exec"):
+		run([f"cp build/{project_name}_exec testing"], shell=True, check=True)
+		run([f"./build/{project_name}_exec {testing_arguments}"], shell=True, check = True)
+# end testing code

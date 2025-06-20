@@ -5,123 +5,193 @@
 #include <string_view>
 #include <optional>
 
-inline auto check_arg_count(const int argc) -> bool
+#define DEBUG 0
+
+inline auto check_args(const int argc, const char *argv[]) -> std::expected<std::pair<std::string_view, std::string_view>, std::string_view>
 {
-	return argc == 3;
+	switch (argc)
+	{
+	case 3:
+		return std::move(std::pair{argv[1], argv[2]});
+		break;
+	default:
+		return std::move(std::unexpected("wrong argument number"));
+	}
 }
 
-auto try_fetch_content(const int argc, const char *argv[]) -> std::optional<std::string>
+auto fetch_content(const std::string_view &filename) -> std::expected<std::string, std::string>
 {
-	if (check_arg_count(argc))
+	try
 	{
-		return std::nullopt;
+		std::string content;
+		std::ifstream stream;
+
+#if DEBUG
+		std::cout << "filename for fetching: " << filename << "\n";
+#endif
+
+		stream.open(filename);
+
+		char c;
+		while (stream.get(c))
+		{
+			content.push_back(c);
+		}
+
+		stream.close();
+
+#if DEBUG
+		std::cout << "content: " << content << "\n";
+#endif
+
+		return content;
 	}
-
-	std::string content;
-	std::ifstream stream;
-	stream.open(argv[1]);
-
-	stream >> content;
-
-	stream.close();
-	return std::move(content);
+	catch (const std::exception &e)
+	{
+		return std::unexpected(e.what());
+	}
 };
 
-auto format_to_str(const std::string_view input_str) -> std::optional<std::string>
+auto format_to_str(const std::string_view input_str) -> std::expected<std::string, std::string_view>
 {
 	if (not input_str.empty())
 	{
-
-		std::string result{"#pragma once\n#include <string_view>\n\nconstexpr std::string_view str = \""};
-		result.reserve(80);
-
-		for (const auto &c : input_str)
+		try
 		{
-			switch (c)
+			std::string format_result_str =
+				"#pragma once\n\nconstexpr const char* str = \"";
+
+			format_result_str.reserve(80);
+
+			for (const auto &c : input_str)
 			{
-			case '\n':
-				result.append("\\n");
-				break;
-			case '\"':
-				result.append("\\\"");
-				break;
-			case '\t':
-				result.append("\\t");
-				break;
-			case '\r':
-				result.append("\\r");
-				break;
-			default:
-				result.push_back(c);
-				break;
+				switch (c)
+				{
+				case '\n':
+					format_result_str.append("\\n");
+					break;
+				case '\"':
+					format_result_str.append("\\\"");
+					break;
+				case '\t':
+					format_result_str.append("\\t");
+					break;
+				case '\r':
+					format_result_str.append("\\r");
+					break;
+				default:
+					format_result_str.push_back(c);
+					break;
+				}
 			}
+
+			format_result_str.append("\";");
+
+			return std::move(format_result_str);
 		}
-
-		result.push_back('\";');
-
-		return std::move(result);
+		catch (const std::exception &e)
+		{
+			return std::unexpected(e.what());
+		}
 	}
-
-	return std::nullopt;
+	else
+	{
+		return std::unexpected("string is empty");
+	}
 };
 
 /// @return if there is a str, it means, something went wrong
 auto save_data(
-	const int argc,
-	const char *argv[],
+	const std::string_view &outfile,
 	const std::string &str) -> std::optional<std::string_view>
 {
-	if (check_arg_count(argc))
+	try
 	{
 		std::ofstream stream;
 
-		try
-		{
-			stream.open(argv[2]);
+		stream.open(outfile);
 
-			stream << str;
+		stream << str;
 
-			stream.close();
-		}
-		catch (const std::exception &e)
-		{
-			return e.what();
-		}
+		stream.close();
 
 		return std::nullopt;
 	}
-
-	return "argument validation failed";
+	catch (const std::exception &e)
+	{
+		return e.what();
+	}
 };
 
 auto main(const int argc, const char *argv[]) -> int
 {
-	const auto &fetch_optional = try_fetch_content(argc, argv);
+#if DEBUG
+	std::cout << "arguments taken it:\n";
 
-	if (fetch_optional.has_value())
+	for (size_t i = 0; i < argc; i++)
 	{
-		const auto &format_optional =
-			format_to_str(fetch_optional.value());
+		std::cout << "" << argv[i];
 
-		if (format_optional.has_value())
+		if (i != argc - 1)
 		{
-			const auto &save_optional_error =
-				save_data(argc, argv, format_optional.value());
-
-			if (save_optional_error.has_value())
-			{
-				std::cout
-					<< "\n"
-					<< save_optional_error.value()
-					<< "\n";
-			}
-			else
-			{
-				std::cout
-					<< "success!\n";
-			}
+			std::cout << ", ";
 		}
 	}
 
-	return 0;
+	std::cout << "\n\n";
+#endif
+
+	const auto &check_args_result = check_args(argc, argv);
+
+	if (check_args_result.has_value())
+	{
+		const auto &[inputfile, ouputfile] = check_args_result.value();
+#if DEBUG
+		std::cout << "inputfile: " << inputfile << "\n";
+		std::cout << "outputfile: " << ouputfile << "\n";
+#endif
+		const auto &fetch_result = fetch_content(inputfile);
+
+		if (fetch_result.has_value())
+		{
+#if DEBUG
+			std::cout << "fetch result value:\n"
+					  << fetch_result.value() << "\n";
+#endif
+
+			const auto &format_result =
+				format_to_str(fetch_result.value());
+
+			if (format_result.has_value())
+			{
+				const auto &data = format_result.value();
+
+				const auto &save_error =
+					save_data(ouputfile, data);
+
+				if (save_error.has_value())
+				{
+					std::cout << "error when saving: " << save_error.value() << "\n";
+				}
+#if DEBUG
+				else
+				{
+					std::cout << "success!\n";
+				}
+#endif
+			}
+			else
+			{
+				std::cerr << "error when formating: " << format_result.error() << "\n";
+			}
+		}
+		else
+		{
+			std::cerr << "error when fetching: " << fetch_result.error() << "\n";
+		}
+	}
+	else
+	{
+		std::cerr << "error when checking args: " << check_args_result.error() << "\n";
+	}
 };
