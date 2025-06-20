@@ -79,6 +79,9 @@ auto format_to_str(const std::string_view input_str) -> std::expected<std::strin
 				case '\r':
 					format_result_str.append("\\r");
 					break;
+				case '\\':
+					format_result_str.append("\\\\");
+					break;
 				default:
 					format_result_str.push_back(c);
 					break;
