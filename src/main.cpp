@@ -73,7 +73,7 @@ auto format_to_str(
 		try
 		{
 			std::string format_result_str =
-				"#pragma once\n\n#include <string_view>\n\n\nconstexpr std::string_view ";
+				"#pragma once\n\nconstexpr const char *";
 			format_result_str.append(output_str_name);
 			format_result_str.append(" = \"");
 
