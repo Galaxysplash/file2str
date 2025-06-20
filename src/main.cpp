@@ -52,14 +52,30 @@ auto fetch_content(const std::string_view &filename) -> std::expected<std::strin
 	}
 };
 
-auto format_to_str(const std::string_view input_str) -> std::expected<std::string, std::string_view>
+auto format_to_str(
+	const std::string_view input_str,
+	const std::string_view &outputfile) -> std::expected<std::string, std::string_view>
 {
 	if (not input_str.empty())
 	{
+		std::string output_str_name;
+
+		for (const auto &e : outputfile)
+		{
+			if (e == '.')
+			{
+				break;
+			}
+
+			output_str_name.push_back(e);
+		}
+
 		try
 		{
 			std::string format_result_str =
-				"#pragma once\n\nconstexpr const char* str = \"";
+				"#pragma once\n\n#include <string_view>\n\n\nconstexpr std::string_view ";
+			format_result_str.append(output_str_name);
+			format_result_str.append(" = \"");
 
 			format_result_str.reserve(80);
 
@@ -163,7 +179,7 @@ auto main(const int argc, const char *argv[]) -> int
 #endif
 
 			const auto &format_result =
-				format_to_str(fetch_result.value());
+				format_to_str(fetch_result.value(), ouputfile);
 
 			if (format_result.has_value())
 			{
